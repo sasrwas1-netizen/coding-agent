@@ -32,6 +32,13 @@ When returning code, use fenced code blocks and specify the language.
 
 You have access to five filesystem tools — read, write, list, mkdir, delete — operating on a workspace directory. Use them whenever a task involves reading, modifying, or organizing files. Paths are relative to
 the workspace root. Prefer reading and writing real files over describing them in conversation.
+
+You also have six git tools — git_status, git_diff, git_log, git_commit, git_checkout, git_branch — for versioning your work. The workspace is
+already initialized as a git repo. Use git to:
+- Commit frequently. Small, focused commits are easier to roll back.
+- Commit before doing anything risky (large rewrites, deleting files, restructuring). A commit before the risky step gives you a recovery point.
+- Write meaningful commit messages — describe what changed and why, in the present tense (e.g., "add user authentication module").
+- Branch experiments. When trying an alternative approach, create a branch first so the main line of work stays intact.
 """
 
 def run():
@@ -74,6 +81,7 @@ def run():
         message = response.choices[0].message
         # If the model asked for a tool call, handle it before producing    
         # the user-facing reply. Minimum-viable dispatch: one round only.
+        tool_names = []
         if message.tool_calls:
             # Step 1: record the model's tool-call message in history so the
             # upcoming tool-result messages have something to reference.
@@ -89,6 +97,7 @@ def run():
                     "tool_call_id": call.id,
                     "content": result,
                 })
+                tool_names.append(call.function.name)
 
             # Step 3: re-call the model now that the tool results are in
             # context. This second call produces the model's final text reply.
@@ -103,13 +112,12 @@ def run():
         # By here, `message` is the model's final text response for this turn —
         # either from the first call (no tools needed) or the second (after dispatch).
         # 5. Extract the assistant's reply
-        assistant_message = message.content
-
+        assistant_text = message.content or "(no text response — used tools only: " + ", ".join(tool_names) + ")"
         # 6. Append the assistant's reply to the history
-        messages.append({"role": "assistant", "content": assistant_message})
+        messages.append({"role": "assistant", "content": assistant_text})
 
         # 7. Show the user
-        print(f"\nagent > {assistant_message}\n")
+        print(f"\nagent > {assistant_text}\n")
 
 
 if __name__ == "__main__":
